@@ -1,25 +1,292 @@
+Reproducible Research Project 1 - Easton Bell
+==========================================---
+output: html_document
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+What is mean total number of steps taken per day?
+
+```{r,echo=FALSE}
+## This first line will likely take a few seconds. Be patient!
+library (dplyr)
+library(reshape)
+library(datasets)
+library(lattice)
+##library(ggplot2)
+
+## load data
+setwd("C:/Rtools/")
+par(mfrow=c(1,3))
+basedata <- read.csv("activity.csv",sep=",",header = TRUE)
+#get data set that is devoid of NA's
+noNA<-!is.na(basedata["steps"])
+
+noNAsubset<-subset(basedata,noNA,select=c(steps,date))
 
 
-## Loading and preprocessing the data
+h<-tapply(noNAsubset$steps,noNAsubset$date,sum)
+hcolnames<-c(names(h))
+
+hnoNA<-subset(h,!is.na(h[hcolnames]))
+
+hnoNAcolnames<-c(names(hnoNA))
+
+
+totalsstepsperday<-sum(hnoNA)/length(hnoNAcolnames)  ## MEAN NUMBER OF STEPS PER DAY
+```
+
+```{r,echo=TRUE}
+totalsstepsperday
+#############################################################################
+```
+Histogram of the total number of steps taken each day
+
+Report the mean and median of the total number of steps taken per day
+
+What is the average daily activity pattern?
+
+Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+```{r, echo=FALSE}
+hist(hnoNA,col="blue", main="Steps(NoNA)",xlab="step buckets",ylab="number of days")
+abline(v=median(hnoNA),col="magenta")
+abline(v=mean(hnoNA),col="red")
+##boxplot(hnoNA,col="blue")
+```
+
+```{r,echo=TRUE}
+mean(hnoNA)
+
+median(hnoNA)
+```
+
+```{r,echo=FALSE}
+
+## time series plot of avg steps per day vs interval
+###########################################################################################
+
+noNAsubseti<-subset(basedata,noNA,select=c(steps,date,interval))
+
+
+hi<-melt(noNAsubseti,id=c("date","interval"), measure.vars=c("steps"))
+hii<-cast(hi, interval~date, sum)
+hcolnamesi<-c(names(hii))
+g<-mutate(hii,rowsmm=rowSums(hii))
+hiii<-subset(g,select=c(interval,rowsmm))
+g1<-mutate(hiii,avgstepsperintervalperday=hiii$rowsmm/(length(hcolnamesi)-1))
+
+maxintv<-subset(g1,g1$avgstepsperintervalperday==max(g1$avgstepsperintervalperday),select=c(interval))
+```
+```{r,echo=TRUE}
+maxintv$interval
+```
+```{r,echo=FALSE}
+plotdata<-g1
+d0<-data.frame(intvl=c(g$interval),AvgStepsPerIntvlPerDay=g1$avgstepsperintervalperday)
+dx<-d0["intvl"]
+dy<-d0["AvgStepsPerIntvlPerDay"]
+xaxisname<-"Intervals"
+yaxisname<-"Avg Steps per day"
+##plot(as.numeric(dx[,1]),as.numeric(dy[,1]), type="l",xaxt="n",main = "Avg Steps Per Intv Per Day",xlab=xaxisname,ylab=yaxisname,ylim=c(min(dy[,1]),max(dy[,1])))
+
+
+plot(as.numeric(dx[,1]),as.numeric(dy[,1]), type="l",main = "Avg Steps Per Intv Per Day",xlab=xaxisname,ylab=yaxisname,ylim=c(min(dy[,1]),max(dy[,1])))
+##axis(1,1:length(dx$intvl),labels=as.char(dx$intvl))
+
+############################################################################################
+for(x in 1:length(dx[,1]))
+{
+  if(dy[x,1]==max(dy[,1]))
+    {
+    ymax<-dy[x,1]
+    xmax<-x   
+    xintval<-dx[x,1]
+    }
+    
+}
+abline(v=xintval,col="magenta")
+
+##points(xintval, ymax, col = "dark red")
+
+
+```
+Total number of missing values in the dataset (i.e. the total number of rows with NAs)
+
+```{r,echo=FALSE}
+isNA<-is.na(basedata["steps"])
+countNArows<-sum(isNA) ## number of rows with NA
+totrows<-nrow(basedata)## total number of rows
+```
+number of rows with NA
+```{r,echo=TRUE}
+sum(isNA)
+```
+total number of rows
+```{r,echo=TRUE}
+nrow(basedata)
+```
+
+The interval mean value was used to fill in missing values
+New total number of steps taken per day. 
+```{r,echo=FALSE}
+hh<-tapply(basedata$steps,basedata$interval,mean,na.rm=TRUE) ## get subst numbers
+hht<-subset(basedata,select=c(steps,interval))
+
+llsteps<-vector()
+llinterval<-vector()
+lll<-vector()
+
+for (j in 1:length(hht[,1,2]))
+    {
+        if(!is.na(hht[j,1,2])) 
+        {
+            lll<-hht[j,,]
+            llsteps[j]<-lll$steps
+            llinterval[j]<-lll$interval
+        }
+
+          else
+            { 
+              c<-hht[j,,]
+              qinterval<-c$interval
+              newsteps<-hh[as.character(qinterval)]
+              llsteps[j]<-newsteps
+              llinterval[j]<-qinterval
+            }
+        
+          
+                  
+     }
+dfclean<-data.frame(steps=llsteps,interval=llinterval)
+
+## new data set with NA substituted for
+basedatasubstNA<-mutate(basedata,stepssubstNA=dfclean[,1,2])
+
+hs<-tapply(basedatasubstNA$stepssubstNA,basedatasubstNA$date,sum)
+hscolnames<-c(names(hs))
+
+
+totalsstepsperday<-sum(hs)/length(hs)
+```
+
+Histogram of the total number of steps taken each day
+Mean and median 
+
+```{r,echo=FALSE}
+##################################################################################
+hist(hs,col="blue", main="Steps(NA Adjusted For)",xlab="step buckets",ylab="number of days")
+abline(v=median(hs),col="magenta")
+abline(v=mean(hs),col="red")
+##boxplot(hs,col="blue")
+```
+```{r,echo=TRUE}
+mean(hs)
+median(hs)
+```
+
+These mean values are similar to the estimates in the first part of the assignment; The median values are now the same as well
+The impact of imputing missing data on the estimates of the total daily number of steps was that mean and the median are now equal
+
+Are there differences in activity patterns between weekdays and weekends?
+
+Panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). 
+
+```{r,echo=FALSE}
+hss<-subset(basedatasubstNA,select=c(stepssubstNA,date,interval))
+
+## time series plot of avg steps per day vs interval
+hssi<-melt(hss,id=c("date","interval"), measure.vars=c("stepssubstNA"))
+hssii<-cast(hssi, interval~date, sum)
+hcolnamessi<-c(names(hssii))
+gs<-mutate(hssii,rowsmm=rowSums(hssii))
+hssiii<-subset(g,select=c(interval,rowsmm))
+gs1<-mutate(hssiii,avgstepsperintervalperday=hssiii$rowsmm/(length(hcolnamesi)-1))
+
+maxintvs<-subset(gs1,gs1$avgstepsperintervalperday==max(gs1$avgstepsperintervalperday),select=c(interval))
+maxintvs$interval
+
+plotdatas<-gs1
+ds0<-data.frame(intvl=c(gs$interval),AvgStepsPerIntvlPerDay=gs1$avgstepsperintervalperday)
+dsx<-ds0["intvl"]
+dsy<-ds0["AvgStepsPerIntvlPerDay"]
+xaxisname<-"Intervals"
+yaxisname<-"Avg Steps per day"
+##plot(as.numeric(dx[,1]),as.numeric(dy[,1]), type="l",xaxt="n",main = "Avg Steps Per Intv Per Day(Adjusted for NA)",xlab=xaxisname,ylab=yaxisname,ylim=c(min(dy[,1]),max(dy[,1])))
+
+plot(as.numeric(dsx[,1]),as.numeric(dsy[,1]), type="l",main = "Avg Steps Per Interval Per Day(Adjusted)",xlab=xaxisname,ylab=yaxisname,ylim=c(min(dy[,1]),max(dy[,1])))
+##axis(1,1:length(dx$intvl),labels=as.char(dx$intvl))
+
+##############################################################################################
+for(x in 1:length(dsx[,1]))
+{
+  if(dsy[x,1]==max(dsy[,1]))
+  {
+    ymax<-dsy[x,1]
+    xmax<-x   
+    xintval<-dsx[x,1]
+  }
+  
+}
+abline(v=xintval,col="magenta")
+
+########################################################################################
+## add weekday name
+
+wkday<-weekdays(as.Date(basedatasubstNA$date))
+                
+wkdytest<-vector()
+
+for (j in 1:nrow(basedatasubstNA))
+     {
+       
+       if (wkday[j]=="Monday") hh<-"weekday"               
+       else
+         if (wkday[j]=="Tuesday") hh<-"weekday"
+         else
+          if (wkday[j]=="Wednesday") hh<-"weekday"  
+          else
+            if (wkday[j]=="Thursday") hh<-"weekday"  
+            else
+             if (wkday[j]=="Friday") hh<-"weekday"  
+              else
+               if (wkday[j]=="Saturday") hh<-"weekendday"  
+                 else
+                  if (wkday[j]=="Sunday") hh<-"weekendday"  
+       wkdytest[j]<-hh      
+      }
+kk<-mutate(basedatasubstNA,weekdayfactor=wkdytest)        
+
+## panel plot weekday vs weekend
+hw<-subset(kk,select=c(stepssubstNA,interval,weekdayfactor))
+
+
+## time series plot of avg steps per day vs interval
+hwssi<-melt(hw,id=c("weekdayfactor","interval"), measure.vars=c("stepssubstNA")) ## summarize by weekday and weekend
+hwssii<-cast(hwssi, interval~weekdayfactor, mean) ## sum all steps by interval and weekdayfactor
+
+
+hawswdy<-tapply(hwssii$weekday,hwssii$interval,mean)
+t<-data.frame()
+t<-data.frame(cbind(names(hawswdy),hawswdy))
+tt<-cbind(t,"weekday")
+colnames(tt)<-c("interval","avgsteps","weekdayfactor")
+
+hawswndy<-tapply(hwssii$weekendday,hwssii$interval,mean)
+tk<-data.frame()
+tk<-data.frame(cbind(names(hawswndy),hawswndy))
+ttkk<-cbind(tk,"weekend")
+colnames(ttkk)<-c("interval","avgsteps","weekdayfactor")
+
+gw<-rbind(tt,ttkk)
+
+y<-as.numeric(gw$avgsteps)
+avgsteps<-y
+x<-as.numeric(gw$interval)
+interval<-x
+f<-factor(gw$weekdayfactor)
+
+
+xyplot(avgsteps~interval|f,layout=c(1,2),ylab="Average Steps",xlab="Interval",type="l")
+```
 
 
 
-## What is mean total number of steps taken per day?
 
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
